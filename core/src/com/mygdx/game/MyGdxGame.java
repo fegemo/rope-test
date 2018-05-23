@@ -2,6 +2,8 @@ package com.mygdx.game;
 
 import com.badlogic.gdx.ApplicationAdapter;
 import com.badlogic.gdx.Gdx;
+import com.badlogic.gdx.Input.Keys;
+import com.badlogic.gdx.InputAdapter;
 import com.badlogic.gdx.graphics.Color;
 import com.badlogic.gdx.graphics.GL20;
 import com.badlogic.gdx.graphics.OrthographicCamera;
@@ -10,10 +12,7 @@ import com.badlogic.gdx.graphics.g2d.Sprite;
 import com.badlogic.gdx.graphics.g2d.SpriteBatch;
 import com.badlogic.gdx.graphics.glutils.ShapeRenderer;
 import com.badlogic.gdx.math.MathUtils;
-import com.badlogic.gdx.math.Matrix4;
-import com.badlogic.gdx.math.Quaternion;
 import com.badlogic.gdx.math.Vector2;
-import com.badlogic.gdx.math.Vector3;
 import com.badlogic.gdx.physics.box2d.Body;
 import com.badlogic.gdx.physics.box2d.BodyDef;
 import com.badlogic.gdx.physics.box2d.BodyDef.BodyType;
@@ -43,9 +42,13 @@ public class MyGdxGame extends ApplicationAdapter {
     private final float mundoDaFisicaParaTela = 50f;
     private final float telaParaMundoDaFisica = 1 / mundoDaFisicaParaTela;
     private final Vector2 tamanhoSegmento = new Vector2(0.1f, 0.05f);
-    private final int numeroDeSegmentos = 50;
+    private final int numeroDeSegmentos = 70;
     private Body segmentoPuxadoDaEsquerda;
     private Body segmentoPuxadoDaDireita;
+    private float forcaTimeEsquerda = 0;
+    private float forcaTimeDireita = 0;
+    private float tempoRestanteParaAbaixarForcaEsquerda = 1;
+    private float tempoRestanteParaAbaixarForcaDireita = 1;
     
     
     @Override
@@ -68,11 +71,27 @@ public class MyGdxGame extends ApplicationAdapter {
         texturaPedacoCorda.setFilter(Texture.TextureFilter.Linear, Texture.TextureFilter.Linear);
         corda = createRope();
         
-        segmentoPuxadoDaEsquerda = corda.getSegment(corda.length()/8);
-        segmentoPuxadoDaDireita = corda.getSegment((int)(corda.length() * (7f/8)));
+        segmentoPuxadoDaEsquerda = corda.getSegment((int)(0.3f * corda.length()));
+        segmentoPuxadoDaDireita = corda.getSegment((int)(0.7f * corda.length()));
         Body segmentoMeio = corda.getSegment(corda.length()/2);
         
         segmentoMeio.applyLinearImpulse(new Vector2(0, 4), Vector2.Zero, true);
+        
+        Gdx.input.setInputProcessor(new InputAdapter() {
+            @Override
+            public boolean keyUp(int keycode) {
+                if (keycode == Keys.LEFT) {
+                    forcaTimeEsquerda += .25f;
+                    tempoRestanteParaAbaixarForcaEsquerda = 0.5f;
+                }
+                if (keycode == Keys.RIGHT) {
+                    forcaTimeDireita += .25f;
+                    tempoRestanteParaAbaixarForcaDireita = 0.5f;
+                }
+                return true;
+            }
+        
+        });
         
         Gdx.gl.glClearColor(1, 1, 1, 1);
     }
@@ -117,8 +136,11 @@ public class MyGdxGame extends ApplicationAdapter {
     @Override
     public void render() {
         Gdx.gl.glClear(GL20.GL_COLOR_BUFFER_BIT);
-        segmentoPuxadoDaEsquerda.applyForceToCenter(new Vector2(-20, 0), true);
-        segmentoPuxadoDaDireita.applyForceToCenter(new Vector2(20, 0), true);
+        tempoRestanteParaAbaixarForcaEsquerda -= Gdx.graphics.getDeltaTime();
+        tempoRestanteParaAbaixarForcaDireita -= Gdx.graphics.getDeltaTime();
+
+        segmentoPuxadoDaEsquerda.applyForceToCenter(new Vector2(-forcaTimeEsquerda, 6), true);
+        segmentoPuxadoDaDireita.applyForceToCenter(new Vector2(+forcaTimeDireita, 6), true);
 
         
         world.step(1/240f, 8, 3);
@@ -137,6 +159,17 @@ public class MyGdxGame extends ApplicationAdapter {
             sprite.draw(batch);
         }
         batch.end();
+        
+        if (tempoRestanteParaAbaixarForcaEsquerda <= 0) {
+            tempoRestanteParaAbaixarForcaEsquerda = 0.25f;
+            forcaTimeEsquerda -= 1.5f;
+            forcaTimeEsquerda = Math.max(0, forcaTimeEsquerda);
+        }
+        if (tempoRestanteParaAbaixarForcaDireita <= 0) {
+            tempoRestanteParaAbaixarForcaDireita = 0.25f;
+            forcaTimeDireita -= 1.5f;
+            forcaTimeDireita = Math.max(0, forcaTimeDireita);
+        }
     }
 
     @Override
